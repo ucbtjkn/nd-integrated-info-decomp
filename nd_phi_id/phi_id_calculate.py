@@ -3,6 +3,7 @@ import itertools
 import time
 from measures import double_redundancy_mmi, local_entropy_discrete, local_entropy_mvn
 from phi_id_lattice import generate_phi_id
+from pathlib import Path
 
 def calculate_entropy(data, sources, targets, kind="gaussian"):
     
@@ -22,7 +23,6 @@ def calculate_entropy(data, sources, targets, kind="gaussian"):
     return h
 
 def calculate_mutual_information(h):
-
     return (-h + h[0,:,:]) + h[:,[0],:]
 
 def calculate_double_redundancy(mutual_information, atoms, double_redundancy="MMI"):
@@ -74,8 +74,12 @@ def temporal_phi_id(base_data, tau=1, lattice=None, kind="gaussian", double_redu
     return phi_id(src, trg, lattice=lattice, kind=kind, double_redundancy=double_redundancy, max_source_atom=max_source_atom, max_target_atom=max_target_atom)
 
 
-def phi_id_combinations(base_data, dim=2, tau=1, kind="gaussian", double_redundancy="MMI"):
+def phi_id_combinations(base_data, dim=2, tau=1, kind="gaussian", double_redundancy="MMI", results_dir="temp"):
     
+    Path("{}/rtr".format(results_dir)).mkdir(parents=True, exist_ok=True)
+    Path("{}/sts".format(results_dir)).mkdir(parents=True, exist_ok=True)
+    Path("{}/tdmi".format(results_dir)).mkdir(parents=True, exist_ok=True)
+
     lattice = generate_phi_id(dim=dim)
     rtr = np.zeros((base_data.shape[0],)*dim)
     sts = np.zeros((base_data.shape[0],)*dim)
@@ -96,23 +100,18 @@ def phi_id_combinations(base_data, dim=2, tau=1, kind="gaussian", double_redunda
             sts[perm] = np.mean(phi_id_atom_values[-1])
             tdmi[perm] = np.sum(np.mean(phi_id_atom_values, axis=0))
 
-        if (dim > 2 and index[-3] > prev_index[-3]):
+        if index[-2] == base_data.shape[0] - 1:
 
-            np.savetxt("results/rtr/rtr_{}".format(prev_index[:-2]), rtr[prev_index[:-2]], delimiter=',')
-            np.savetxt("results/sts/sts_{}".format(prev_index[:-2]), sts[prev_index[:-2]], delimiter=',')
-            np.savetxt("results/tdmi/tdmi_{}".format(prev_index[:-2]), tdmi[prev_index[:-2]], delimiter=',')
+            np.savetxt("{}/rtr/rtr{}".format(results_dir, '' if dim == 2 else '_' + '_'.join(map(str,prev_index[:-2]))), rtr[prev_index[:-2]], delimiter=',')
+            np.savetxt("{}/sts/sts{}".format(results_dir, '' if dim == 2 else '_' + '_'.join(map(str,prev_index[:-2]))), sts[prev_index[:-2]], delimiter=',')
+            np.savetxt("{}/tdmi/tdmi{}".format(results_dir, '' if dim == 2 else '_' + '_'.join(map(str,prev_index[:-2]))), tdmi[prev_index[:-2]], delimiter=',')
             
-            print(prev_index)
+            print(index)
             print(time.process_time() - t)
             t = time.process_time()
             prev_index = index
-
-    if dim == 2:
-        np.savetxt("results/rtr/rtr", rtr, delimiter=',')
-        np.savetxt("results/sts/sts", sts, delimiter=',')
-        np.savetxt("results/tdmi/tdmi", tdmi, delimiter=',')
+    
     return rtr, sts, tdmi
 
-
-#data = np.genfromtxt("test_data.csv", delimiter=",")
-#phi_id_combinations(data, dim=3)
+data = np.random.rand(4, 250)
+phi_id_combinations(data, dim=3)
